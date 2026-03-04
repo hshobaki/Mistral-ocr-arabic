@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="htmlTag">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ميسترال OCR برو | Mistral Arabic OCR Pro</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="theme-color" content="#6366f1">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Icons & Libraries -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+</head>
+
+<body data-theme="light">
+
+  <header>
+    <div class="logo">
+      <i class="fa-solid fa-sparkles"></i>
+      <span data-i18n="appTitle">ميسترال OCR برو</span>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn btn-ghost" onclick="toggleLanguage()" id="langBtn">EN</button>
+      <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="تغيير المظهر"><i
+          class="fa-solid fa-moon"></i></button>
+      <button class="btn btn-ghost" onclick="showSettings()" title="الإعدادات"><i class="fa-solid fa-gear"></i></button>
+      <button class="btn btn-primary" onclick="resetApp()" id="homeBtn" data-i18n="home">الرئيسية</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Home Step -->
+    <section id="step-home" class="step active">
+      <div style="text-align: center; margin-bottom: 3rem;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;" data-i18n="heroTitle">حوّل صورك إلى نصوص ذكية</h1>
+        <p style="color: var(--text-secondary);" data-i18n="heroSub">استخراج، ترجمة، تلخيص، وتصدير بلمحة بصر.</p>
+      </div>
+
+      <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <h2 data-i18n="uploadTitle">اضغط لرفع ملف أو اسحبه هنا</h2>
+        <p data-i18n="uploadSub">يدعم الصور (PNG, JPG) وملفات PDF</p>
+        <input type="file" id="fileInput" class="hidden" accept="image/*,application/pdf">
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <h3 style="margin-bottom: 1rem;" data-i18n="recentHistory">السجل الأخير</h3>
+        <div id="historyGrid"
+          style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+          <!-- History cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Loading Step -->
+    <section id="step-loading" class="step">
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+        <h2 id="loadingMsg" data-i18n="loadingTitle">جاري معالجة الملف...</h2>
+        <p data-i18n="loadingSub">يتم الآن استخراج النصوص بواسطة ذكاء ميسترال</p>
+      </div>
+    </section>
+
+    <!-- Editor Step -->
+    <section id="step-editor" class="step">
+      <div class="workspace-grid">
+        <!-- Preview -->
+        <div class="panel">
+          <div class="panel-header">
+            <strong data-i18n="originalDoc">المستند الأصلي</strong>
+            <div style="display: flex; gap: 5px; align-items: center;">
+              <button class="icon-btn" onclick="changeZoom(-0.1)" title="تصغير"><i
+                  class="fa-solid fa-minus"></i></button>
+              <button class="icon-btn" id="zoomLevel" onclick="resetZoom()" title="إعادة ضبط"
+                style="width: 60px;">100%</button>
+              <button class="icon-btn" onclick="changeZoom(0.1)" title="تكبير"><i class="fa-solid fa-plus"></i></button>
+              <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
+              <button class="icon-btn" onclick="prevPage()" title="الصفحة السابقة"><i
+                  class="fa-solid fa-chevron-right"></i></button>
+              <span id="pageCounter">1/1</span>
+              <button class="icon-btn" onclick="nextPage()" title="الصفحة التالية"><i
+                  class="fa-solid fa-chevron-left"></i></button>
+            </div>
+          </div>
+          <div class="preview-content" id="previewContainer"></div>
+        </div>
+
+        <!-- Editor -->
+        <div class="panel">
+          <div class="panel-header">
+            <strong data-i18n="extractedText">النص المستخرج</strong>
+            <div style="display: flex; gap: 5px; align-items: center;">
+              <button class="icon-btn" onclick="changeEditorZoom(-2)" title="تصغير الخط"><i
+                  class="fa-solid fa-minus"></i></button>
+              <span id="editorFontSize" style="font-size: 0.8rem; width: 40px; text-align: center;">16px</span>
+              <button class="icon-btn" onclick="changeEditorZoom(2)" title="تكبير الخط"><i
+                  class="fa-solid fa-plus"></i></button>
+              <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
+              <button class="btn btn-primary" onclick="exportData('pdf')"><i class="fa-solid fa-download"></i>
+                <span data-i18n="export">تصدير</span></button>
+              <button class="icon-btn" onclick="copyText()" title="نسخ النص"><i class="fa-solid fa-copy"></i></button>
+            </div>
+          </div>
+          <div class="panel-header" style="background: none; border:none; gap: 5px;">
+            <button class="icon-btn" onclick="aiAction('summarize')"><i class="fa-solid fa-list-check"></i> <span
+                data-i18n="summarize">تلخيص</span></button>
+            <button class="icon-btn" onclick="aiAction('translate')"><i class="fa-solid fa-language"></i> <span
+                data-i18n="translate">ترجمة</span></button>
+          </div>
+
+          <div class="editor-container">
+            <div class="editor-content" id="editor" contenteditable="true" style="height: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- AI Analysis Results Panel -->
+        <div class="panel" id="aiResultsPanel" style="display: none;">
+          <div class="panel-header">
+            <strong data-i18n="aiAnalysis">تحليل الذكاء الاصطناعي</strong>
+          </div>
+          <div class="ai-results-wrapper">
+            <!-- AI Results -->
+            <div id="summaryPanel" class="ai-result-panel" style="flex: 1; margin: 0;">
+              <h4><i class="fa-solid fa-list-check"></i> <span data-i18n="aiSummary">ملخص الذكاء الاصطناعي</span></h4>
+              <div id="summaryContent" class="editor-content" style="height: auto; padding: 0;"></div>
+            </div>
+
+            <div id="translationPanel" class="ai-result-panel" style="flex: 1; margin: 0;">
+              <h4><i class="fa-solid fa-language"></i> <span data-i18n="proTranslation">الترجمة الاحترافية</span></h4>
+              <div id="translationContent" class="editor-content" style="height: auto; padding: 0;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modals -->
+  <div class="modal" id="cropModal">
+    <div class="modal-body" style="max-width: 800px;">
+      <h3 style="margin-bottom: 1rem;" data-i18n="cropTitle">تحسين الصورة قبل المعالجة</h3>
+      <div style="max-height: 500px; overflow: hidden; border-radius: 8px;">
+        <img id="cropTarget" style="max-width: 100%;">
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 1.5rem; justify-content: flex-end;">
+        <button class="btn btn-ghost" onclick="closeModal('cropModal')" data-i18n="cancel">إلغاء</button>
+        <button class="btn btn-primary" onclick="confirmCrop()" data-i18n="continue">متابعة المعالجة</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="settingsModal">
+    <div class="modal-body">
+      <h3 style="margin-bottom: 1rem;" data-i18n="settings">الإعدادات</h3>
+      <p style="margin-bottom: 1rem; color: var(--text-secondary);" data-i18n="apiKeyDesc">أدخل مفتاح Mistral API الخاص
+        بك:</p>
+      <input type="password" id="apiKeyInput" class="btn btn-ghost" style="width: 100%; margin-bottom: 1rem;"
+        placeholder="Mistral API Key">
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-ghost" onclick="closeModal('settingsModal')" data-i18n="cancel">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveApiKey()" data-i18n="save">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastBox"></div>
+
+  <script>
+    const state = {
+      apiKey: localStorage.getItem('mistral_api_key') || 'XzumGmdAOoECedOKLrgv8mesAlc3bhLA',
+      history: JSON.parse(localStorage.getItem('ocr_history_v3') || '[]'),
+      currentFile: null,
+      pdfDoc: null,
+      currentPage: 1,
+      totalPages: 1,
+      zoom: 1,
+      editorFontSize: 16,
+      theme: localStorage.getItem('ocr_theme') || 'light',
+      lang: localStorage.getItem('ocr_lang') || 'ar'
+    };
+
+    const translations = {
+      ar: {
+        appTitle: "ميسترال OCR برو",
+        home: "الرئيسية",
+        heroTitle: "حوّل صورك إلى نصوص ذكية",
+        heroSub: "استخراج، ترجمة، تلخيص، وتصدير بلمحة بصر.",
+        uploadTitle: "اضغط لرفع ملف أو اسحبه هنا",
+        uploadSub: "يدعم الصور (PNG, JPG) وملفات PDF",
+        recentHistory: "السجل الأخير",
+        loadingTitle: "جاري معالجة الملف...",
+        loadingSub: "يتم الآن استخراج النصوص بواسطة ذكاء ميسترال",
+        originalDoc: "المستند الأصلي",
+        extractedText: "النص المستخرج",
+        export: "تصدير",
+        summarize: "تلخيص",
+        translate: "ترجمة",
+        aiSummary: "ملخص الذكاء الاصطناعي",
+        proTranslation: "الترجمة الاحترافية",
+        aiAnalysis: "تحليل الذكاء الاصطناعي",
+        cropTitle: "تحسين الصورة قبل المعالجة",
+        cancel: "إلغاء",
+        continue: "متابعة المعالجة",
+        settings: "الإعدادات",
+        apiKeyDesc: "أدخل مفتاح Mistral API الخاص بك:",
+        save: "حفظ",
+        noHistory: "لا توجد سجلات.",
+        success: "تمت بنجاح!",
+        copySuccess: "تم النسخ إلى الحافظة",
+        noText: "لا يوجد نص",
+        unsupported: "نوع ملف غير مدعوم",
+        processing: "جاري المعالجة..."
+      },
+      en: {
+        appTitle: "Mistral OCR Pro",
+        home: "Home",
+        heroTitle: "Transform Images into Smart Text",
+        heroSub: "Extract, translate, summarize, and export instantly.",
+        uploadTitle: "Click to upload or drag & drop",
+        uploadSub: "Supports PNG, JPG and PDF",
+        recentHistory: "Recent History",
+        loadingTitle: "Processing file...",
+        loadingSub: "Extracting text using Mistral AI intelligence",
+        originalDoc: "Original Document",
+        extractedText: "Extracted Text",
+        export: "Export",
+        summarize: "Summarize",
+        translate: "Translate",
+        aiSummary: "AI Summary",
+        proTranslation: "Professional Translation",
+        aiAnalysis: "AI Analysis",
+        cropTitle: "Image Optimization",
+        cancel: "Cancel",
+        continue: "Continue",
+        settings: "Settings",
+        apiKeyDesc: "Enter your Mistral API Key:",
+        save: "Save",
+        noHistory: "No records found.",
+        success: "Success!",
+        copySuccess: "Copied to clipboard",
+        noText: "No text found",
+        unsupported: "Unsupported file type",
+        processing: "Processing..."
+      }
+    };
+
+    let cropper = null;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Init
+    document.body.setAttribute('data-theme', state.theme);
+    updateLanguage();
+    updateHistory();
+
+    function toggleTheme() {
+      state.theme = state.theme === 'light' ? 'dark' : 'light';
+      document.body.setAttribute('data-theme', state.theme);
+      localStorage.setItem('ocr_theme', state.theme);
+    }
+
+    function toggleLanguage() {
+      state.lang = state.lang === 'ar' ? 'en' : 'ar';
+      localStorage.setItem('ocr_lang', state.lang);
+      updateLanguage();
+    }
+
+    function updateLanguage() {
+      const isAr = state.lang === 'ar';
+      document.getElementById('htmlTag').dir = isAr ? 'rtl' : 'ltr';
+      document.getElementById('htmlTag').lang = state.lang;
+      document.getElementById('langBtn').innerText = isAr ? 'EN' : 'AR';
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.innerText = translations[state.lang][key] || key;
+      });
+    }
+
+    function showStep(id) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById(`step-${id}`).classList.add('active');
+    }
+
+    function resetApp() {
+      state.currentFile = null;
+      state.pdfDoc = null;
+      showStep('home');
+    }
+
+    // File Operations
+    document.getElementById('fileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.type.startsWith('image/')) {
+        openCrop(file);
+      } else if (file.type === 'application/pdf') {
+        state.currentFile = file;
+        processOCR();
+      } else {
+        showToast(translations[state.lang].unsupported, "error");
+      }
+    });
+
+    function openCrop(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.getElementById('cropTarget');
+        img.src = e.target.result;
+        document.getElementById('cropModal').classList.add('active');
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(img, { viewMode: 1, autoCropArea: 0.9 });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function confirmCrop() {
+      cropper.getCroppedCanvas().toBlob(blob => {
+        state.currentFile = new File([blob], "upload.png", { type: "image/png" });
+        closeModal('cropModal');
+        processOCR();
+      });
+    }
+
+    async function processOCR() {
+      if (!state.apiKey) return showSettings();
+      showStep('loading');
+
+      try {
+        const base64 = await fileToBase64(state.currentFile);
+        const isPdf = state.currentFile.type === 'application/pdf';
+        const payload = {
+          model: 'mistral-ocr-latest',
+          document: isPdf ? { type: 'document_url', document_url: base64 } : { type: 'image_url', image_url: base64 },
+          include_image_base64: true
+        };
+
+        const res = await fetch('https://api.mistral.ai/v1/ocr', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${state.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("فشل الاتصال بـ Mistral. تأكد من مفتاح API.");
+        const data = await res.json();
+
+        await renderPreview();
+
+        const fullMd = data.pages.map(p => p.markdown).join('\n\n');
+        const editor = document.getElementById('editor');
+
+        // Build Image Map
+        const imgMap = {};
+        data.pages.forEach(pg => pg.images?.forEach(i => imgMap[i.id] = `data:image/jpeg;base64,${i.image_base64}`));
+
+        // Custom Marked Renderer
+        const renderer = new marked.Renderer();
+        renderer.image = (href, title, text) => {
+          const b64 = imgMap[href] || href;
+          return `<img src="${b64}" alt="${text || ''}" title="${title || ''}">`;
+        };
+
+        editor.innerHTML = marked.parse(fullMd, { renderer });
+
+        // Post-render scan for naked IDs missed by Markdown
+        Object.keys(imgMap).forEach(id => {
+          const b64 = imgMap[id];
+          const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null, false);
+          let n; const matches = [];
+          while (n = walker.nextNode()) if (n.textContent.includes(id)) matches.push(n);
+
+          matches.forEach(textNode => {
+            const parts = textNode.textContent.split(id);
+            const frag = document.createDocumentFragment();
+            parts.forEach((p, i) => {
+              frag.appendChild(document.createTextNode(p));
+              if (i < parts.length - 1) {
+                const el = document.createElement('img');
+                el.src = b64;
+                frag.appendChild(el);
+              }
+            });
+            textNode.parentNode.replaceChild(frag, textNode);
+          });
+        });
+
+        saveHistory({ name: state.currentFile.name, text: fullMd });
+        showStep('editor');
+        showToast(translations[state.lang].success, "success");
+      } catch (err) {
+        showToast(err.message, "error");
+        showStep('home');
+      }
+    }
+
+    async function renderPreview() {
+      const container = document.getElementById('previewContainer');
+      container.innerHTML = '';
+      state.zoom = 1; // Reset zoom on new file
+      if (state.currentFile.type === 'application/pdf') {
+        const buf = await state.currentFile.arrayBuffer();
+        state.pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+        state.totalPages = state.pdfDoc.numPages;
+        renderPdfPage(1);
+      } else {
+        const img = document.createElement('img');
+        img.id = 'previewImg';
+        img.src = URL.createObjectURL(state.currentFile);
+        img.style.maxWidth = '100%';
+        img.style.transition = 'transform 0.1s ease-out';
+        img.style.transformOrigin = 'top center';
+        container.appendChild(img);
+        state.totalPages = 1;
+      }
+      document.getElementById('pageCounter').innerText = `1 / ${state.totalPages}`;
+    }
+
+    async function renderPdfPage(num) {
+      if (!state.pdfDoc || num < 1 || num > state.totalPages) return;
+      state.currentPage = num;
+      const container = document.getElementById('previewContainer');
+      container.innerHTML = '';
+      const page = await state.pdfDoc.getPage(num);
+      const vp = page.getViewport({ scale: 1.2 * state.zoom });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      container.appendChild(canvas);
+      document.getElementById('pageCounter').innerText = `${state.currentPage} / ${state.totalPages}`;
+    }
+
+    function prevPage() {
+      if (state.currentPage > 1) renderPdfPage(state.currentPage - 1);
+    }
+
+    function nextPage() {
+      if (state.currentPage < state.totalPages) renderPdfPage(state.currentPage + 1);
+    }
+
+    // Zoom Controls
+    function changeZoom(delta) {
+      state.zoom += delta;
+      state.zoom = Math.min(Math.max(state.zoom, 0.2), 3.0);
+      updatePreviewZoom();
+    }
+
+    function resetZoom() {
+      state.zoom = 1;
+      updatePreviewZoom();
+    }
+
+    function updatePreviewZoom() {
+      const zLabel = document.getElementById('zoomLevel');
+      if (zLabel) zLabel.innerText = Math.round(state.zoom * 100) + '%';
+
+      if (state.pdfDoc) {
+        renderPdfPage(state.currentPage);
+      } else {
+        const img = document.getElementById('previewImg');
+        if (img) {
+          img.style.transform = `scale(${state.zoom})`;
+        }
+      }
+    }
+
+    function changeEditorZoom(delta) {
+      state.editorFontSize = Math.min(Math.max(state.editorFontSize + delta, 10), 40);
+      const editor = document.getElementById('editor');
+      const summ = document.getElementById('summaryContent');
+      const trans = document.getElementById('translationContent');
+      const label = document.getElementById('editorFontSize');
+
+      const sizeStr = state.editorFontSize + 'px';
+      if (editor) editor.style.fontSize = sizeStr;
+      if (summ) summ.style.fontSize = sizeStr;
+      if (trans) trans.style.fontSize = sizeStr;
+      if (label) label.innerText = sizeStr;
+    }
+
+    // AI Actions
+    async function aiAction(type) {
+      const content = document.getElementById('editor').innerText;
+      if (!content) return showToast(translations[state.lang].noText, "info");
+
+      const panelId = type === 'summarize' ? 'summaryPanel' : 'translationPanel';
+      const contentId = type === 'summarize' ? 'summaryContent' : 'translationContent';
+      const panel = document.getElementById(panelId);
+      const output = document.getElementById(contentId);
+
+      showToast(translations[state.lang].processing, "info");
+
+      const prompt = type === 'summarize'
+        ? (state.lang === 'ar' ? `لخص هذا النص بالعربية بشكل نقاط موجزة: ${content}` : `Summarize this text in English with concise bullet points: ${content}`)
+        : (state.lang === 'ar' ? `ترجم هذا النص للعربية بأسلوب احترافي: ${content}` : `Translate this text professionally: ${content}`);
+
+      try {
+        const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${state.apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'mistral-large-latest', messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const result = data.choices[0].message.content;
+
+        output.innerHTML = marked.parse(result);
+        panel.classList.add('active');
+        document.getElementById('aiResultsPanel').style.display = 'flex';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        showToast(translations[state.lang].success, "success");
+      } catch (e) { showToast(state.lang === 'ar' ? "خطأ في الاتصال" : "Connection Error", "error"); }
+    }
+
+    // Actions & Exports
+    function copyText() {
+      const content = document.getElementById('editor').innerText;
+      if (!content) return showToast("لا يوجد نص للنسخ", "info");
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content).then(() => {
+          showToast("تم النسخ إلى الحافظة", "success");
+        }).catch(err => {
+          fallbackCopyText(content);
+        });
+      } else {
+        fallbackCopyText(content);
+      }
+    }
+
+    function fallbackCopyText(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast("تم النسخ إلى الحافظة", "success");
+      } catch (err) {
+        showToast("فشل النسخ التلقائي", "error");
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function exportData(type) {
+      const content = document.getElementById('editor').innerText;
+      const htmlContent = document.getElementById('editor').innerHTML;
+      if (!content) return showToast("لا يوجد نص للتصدير", "info");
+
+      const fileName = `mistral_ocr_${Date.now()}`;
+
+      if (type === 'pdf') {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+                    <html dir="rtl"><head><title>تصدير OCR</title>
+                    <style>
+                        body { font-family: 'IBM Plex Sans Arabic', sans-serif; padding: 40px; line-height: 1.8; }
+                        table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+                        td, th { border: 1px solid #ccc; padding: 8px; }
+                    </style></head>
+                    <body>${htmlContent}</body></html>
+                `);
+        printWindow.document.close();
+        printWindow.print();
+      } else if (type === 'word') {
+        const blob = new Blob(['\ufeff', `
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head><meta charset='utf-8'><title>Export</title><style>body { font-family: Arial; direction: rtl; }</style></head>
+                    <body>${htmlContent}</body></html>
+                `], { type: 'application/msword' });
+        downloadBlob(blob, `${fileName}.doc`);
+      } else if (type === 'text') {
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(blob, `${fileName}.txt`);
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Utils
+    function fileToBase64(file) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+    }
+
+    function showToast(msg, type) {
+      const b = document.getElementById('toastBox');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerText = msg;
+      b.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    function saveHistory(item) {
+      state.history.unshift({ ...item, id: Date.now(), date: new Date().toLocaleDateString('ar-SA') });
+      if (state.history.length > 10) state.history.pop();
+      localStorage.setItem('ocr_history_v3', JSON.stringify(state.history));
+      updateHistory();
+    }
+
+    function updateHistory() {
+      const g = document.getElementById('historyGrid');
+      if (!state.history.length) { g.innerHTML = `<p>${translations[state.lang].noHistory}</p>`; return; }
+      g.innerHTML = state.history.map(h => `
+                <div class="panel" style="height: auto; padding: 1rem; cursor: pointer;" onclick="loadHistory(${h.id})">
+                    <strong>${h.name}</strong>
+                    <small style="color:var(--text-secondary); display:block;">${h.date}</small>
+                </div>
+            `).join('');
+    }
+
+    function loadHistory(id) {
+      const h = state.history.find(x => x.id === id);
+      document.getElementById('editor').innerHTML = marked.parse(h.text);
+      document.getElementById('previewContainer').innerHTML = '<p>المعاينة الأصلية غير متاحة للسجلات القديمة.</p>';
+      showStep('editor');
+    }
+
+    function showSettings() { document.getElementById('apiKeyInput').value = state.apiKey; document.getElementById('settingsModal').classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function saveApiKey() { state.apiKey = document.getElementById('apiKeyInput').value; localStorage.setItem('mistral_api_key', state.apiKey); closeModal('settingsModal'); showToast("تم الحفظ", "success"); }
+
+  </script>
+</body>
+
+</html>
